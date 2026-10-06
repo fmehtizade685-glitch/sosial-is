@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Məktəb Sosial İş Sistemi</title>
+<style>
+:root{--ink:#1c2b3a;--mute:#5d6b7a;--bg:#f3f6f8;--card:#fff;--line:#d9e1e7;--teal:#1f6f78;--teal2:#e3f1f2;--warn:#b5472f;--amb:#c58a1b}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 system-ui,Segoe UI,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+.app{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+nav{background:var(--ink);color:#dbe5ec;padding:20px 14px}
+nav h1{font-size:16px;margin:0 0 18px;color:#fff}
+nav button{display:block;width:100%;text-align:left;background:none;border:0;color:inherit;padding:9px 10px;border-radius:6px;cursor:pointer;font:inherit}
+nav button:hover,nav button.on{background:#2d4257;color:#fff}
+nav button:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--amb);outline-offset:2px}
+main{padding:22px;max-width:1000px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.top h2{margin:0;font-size:22px}
+select,.btn{font:inherit;padding:7px 12px;border:1px solid var(--line);border-radius:6px;background:#fff;cursor:pointer}
+.btn.p{background:var(--teal);color:#fff;border-color:var(--teal)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.stat b{display:block;font-size:26px;color:var(--teal)}
+.box{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:16px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:520px}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line)}
+th{color:var(--mute);font-weight:600}
+tr.row{cursor:pointer}tr.row:hover{background:var(--teal2)}
+.tag{padding:2px 8px;border-radius:10px;font-size:12px;background:var(--teal2);color:var(--teal)}
+.tag.hi{background:#f6dfd9;color:var(--warn)}.tag.md{background:#f8ecd0;color:#8a5f0a}
+.lock{background:#eef0f2;color:var(--mute);padding:10px;border-radius:6px;border:1px dashed var(--line)}
+ul.log{list-style:none;padding:0;margin:0}ul.log li{padding:6px 0;border-bottom:1px solid var(--line)}
+@media(max-width:700px){.app{grid-template-columns:1fr}nav{display:flex;overflow-x:auto;gap:4px}nav h1{display:none}nav button{white-space:nowrap;width:auto}}
+@media print{nav,.top .btn,select{display:none}.app{display:block}}
+</style>
+</head>
+<body>
+<div class="app">
+<nav id="menu" aria-label="Əsas menyu"></nav>
+<main>
+ <div class="top">
+  <h2 id="title"></h2>
+  <div>
+   <label>Rol: <select id="role"><option value="lead">Rəhbərlik</option><option value="sw">Sosial işçi</option><option value="psy">Psixoloq</option></select></label>
+   <button class="btn" onclick="window.print()">Çap et</button>
+  </div>
+ </div>
+ <div id="view"></div>
+</main>
+</div>
+<script>
+// Nümunə məlumatlar (real şagird məlumatı deyil)
+const cases=[
+ {id:"SW-2026-00125",stu:"Şagird A.",cls:"7-B",cat:"Ailə vəziyyəti",risk:"Yüksək",st:"İş gedir",who:"Sosial işçi",psy:"Valideynlə görüş planlaşdırılıb."},
+ {id:"SW-2026-00126",stu:"Şagird B.",cls:"9-A",cat:"Davamiyyət",risk:"Orta",st:"Həvalə edildi",who:"Psixoloq",psy:"İlkin söhbət aparılıb."},
+ {id:"SW-2026-00127",stu:"Şagird C.",cls:"5-C",cat:"Davranış",risk:"Aşağı",st:"Yeni",who:"Sosial işçi",psy:"—"},
+ {id:"SW-2026-00124",stu:"Şagird D.",cls:"11-A",cat:"Sosial dəstək",risk:"Orta",st:"Bağlandı",who:"Sosial işçi",psy:"Qeyd yoxdur."}
+];
+const audit=[];
+const log=(u,a)=>{const d=new Date();audit.unshift(d.toLocaleDateString("az")+" "+d.toLocaleTimeString("az",{hour:"2-digit",minute:"2-digit"})+" — "+u+": "+a)};
+const names={lead:"Rəhbərlik",sw:"Sosial işçi",psy:"Psixoloq"};
+const pages=[["home","🏠 Ana səhifə"],["cases","📁 Sosial işlər"],["audit","🕒 Fəaliyyət tarixçəsi"]];
+let page="home",open=null;
+const $=id=>document.getElementById(id),role=()=>$("role").value;
+const riskTag=r=>`<span class="tag ${r==="Yüksək"?"hi":r==="Orta"?"md":""}">${r}</span>`;
+function menu(){$("menu").innerHTML="<h1>MƏKTƏB SOSİAL İŞ SİSTEMİ</h1>"+pages.map(p=>`<button class="${p[0]===page?"on":""}" onclick="go('${p[0]}')">${p[1]}</button>`).join("")}
+function go(p){page=p;open=null;render()}
+function home(){
+ const n=s=>cases.filter(c=>c.st===s).length;
+ return `<div class="stats"><div class="stat"><b>${cases.length-n("Bağlandı")}</b>Açıq iş</div><div class="stat"><b>${n("Bağlandı")}</b>Bağlanmış iş</div><div class="stat"><b>${n("Həvalə edildi")}</b>Həvalə edilmiş</div><div class="stat"><b>${cases.filter(c=>c.risk==="Yüksək").length}</b>Yüksək risk</div></div>
+ <div class="box"><h3>Son fəaliyyətlər</h3><ul class="log">${audit.slice(0,5).map(a=>`<li>${a}</li>`).join("")||"<li>Hələ fəaliyyət yoxdur. Sosial işlər bölməsindən bir işi açın.</li>"}</ul></div>`}
+function list(){
+ return `<div class="box"><table><tr><th>İş №</th><th>Şagird</th><th>Sinif</th><th>Kateqoriya</th><th>Risk</th><th>Status</th></tr>${cases.map(c=>`<tr class="row" tabindex="0" onclick="show('${c.id}')" onkeydown="if(event.key==='Enter')show('${c.id}')"><td>${c.id}</td><td>${c.stu}</td><td>${c.cls}</td><td>${c.cat}</td><td>${riskTag(c.risk)}</td><td>${c.st}</td></tr>`).join("")}</table></div>`}
+function show(id){open=id;log(names[role()],id+" işinə baxdı);render()}
+function card(){
+ const c=cases.find(x=>x.id===open);
+ const r=role();
+ const note=r==="lead"?`<div class="lock">🔒 Psixoloq qeydləri rəhbərlik üçün gizlədilib.</div>`:`<p>${c.psy}</p>`;
+ return `<div class="box"><button class="btn" onclick="open=null;render()">← Siyahıya qayıt</button>
+ <h3>${c.id} — ${c.stu} (${c.cls})</h3>
+ <p>Kateqoriya: <b>${c.cat}</b> · Risk: ${riskTag(c.risk)} · Status: <b>${c.st}</b> · Cavabdeh: <b>${c.who}</b></p>
+ <h4>Psixoloq qeydləri</h4>${note}
+ ${r!=="lead"?`<p><button class="btn p" onclick="assign('${c.id}')">${r==="sw"?"Psixoloqa yönləndir":"Sosial işçiyə yönləndir"}</button></p>`:""}</div>`}
+function assign(id){const c=cases.find(x=>x.id===id),r=role();c.who=r==="sw"?"Psixoloq":"Sosial işçi";c.st="Həvalə edildi";log(names[r],id+" işini "+c.who+(c.who==="Psixoloq"?"a":"ya")+" yönləndirdi");render()}
+function auditView(){return `<div class="box"><ul class="log">${audit.map(a=>`<li>${a}</li>`).join("")||"<li>Qeyd yoxdur.</li>"}</ul></div>`}
+function render(){
+ menu();
+ $("title").textContent=pages.find(p=>p[0]===page)[1].slice(3);
+ $("view").innerHTML=open?card():page==="home"?home():page==="cases"?list():auditView();
+}
+$("role").addEventListener("change",()=>{log(names[role()],"sistemə daxil oldu");render()});
+render();
+</script>
+</body>
+</html>
